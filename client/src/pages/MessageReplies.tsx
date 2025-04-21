@@ -51,11 +51,15 @@ export default function MessageReplies() {
     newSocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('Received WebSocket message:', data);
+        
         if (data.type === 'initialReplies') {
           // Initial data
+          console.log('Received initial replies:', data.data);
           setLiveReplies(data.data);
         } else if (data.type === 'newReply') {
           // New reply received
+          console.log('Received new reply:', data.data);
           setLiveReplies(prev => [data.data, ...prev]);
           // Also invalidate the query to keep the data fresh
           queryClient.invalidateQueries({ queryKey: ['/api/replies'] });

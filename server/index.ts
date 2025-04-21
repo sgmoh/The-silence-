@@ -2,8 +2,11 @@ import 'dotenv/config'; // Load .env file variables
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { createServer } from "http";
 
 const app = express();
+const server = createServer(app);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -38,7 +41,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -57,14 +60,10 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Use PORT environment variable if set (for Render), otherwise default to 5000
+  // Use PORT environment variable if set (for Render), otherwise default to 3000
   // This serves both the API and the client.
-  const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  server.listen(port, "localhost", () => {
     log(`serving on port ${port}`);
     console.log(`\n=== SilentSignal App ===\nServer is running at: http://localhost:${port}\n======================\n`);
   });

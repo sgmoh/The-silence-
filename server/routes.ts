@@ -12,6 +12,8 @@ import {
 } from "@shared/schema";
 import { Client, GatewayIntentBits, Collection, Events } from "discord.js";
 import { db } from "./db";
+import { messageReplies } from "../shared/schema";
+import { eq } from "drizzle-orm";
 
 // Track active WebSocket connections
 const clients = new Set<WebSocket>();
@@ -19,6 +21,15 @@ const clients = new Set<WebSocket>();
 let discordClient: Client | null = null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint
+  app.get("/api/health", (req, res) => {
+    res.status(200).json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  });
+
   // Handle token submission
   app.post("/api/token", async (req, res) => {
     try {
@@ -491,45 +502,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get message replies endpoint
+  // Get message replies
   app.get("/api/replies", async (req, res) => {
     try {
-      const replies = await storage.getMessageReplies();
-      return res.status(200).json({
-        success: true,
-        replies
-      });
+      const replies = await db.select().from(messageReplies).orderBy(messageReplies.timestamp);
+      res.json(replies);
     } catch (error) {
-      console.error("Error fetching message replies:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to fetch message replies"
+      console.error("Error fetching replies:", error);
+      res.status(500).json({ error: "Failed to fetch replies" });
+    }
+  });
+
+  // Send a reply
+  app.post("/api/replies", async (req, res) => {
+    try {
+      const { userId, username, content, messageId, avatarUrl, guildId, guildName } = req.body;
+      
+      const reply = await db.insert(messageReplies).values({
+        userId,
+        username,
+        content,
+        messageId,
+        timestamp: new Date(),
+        avatarUrl,
+        guildId,
+        guildName
+      }).returning();
+
+      // Broadcast the new reply to all WebSocket clients
+      const broadcastMessage = JSON.stringify({
+        type: 'newReply',
+        data: reply[0]
       });
+
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(broadcastMessage);
+        }
+      });
+
+      res.json(reply[0]);
+    } catch (error) {
+      console.error("Error sending reply:", error);
+      res.status(500).json({ error: "Failed to send reply" });
     }
   });
 
   // Setup WebSocket server for real-time events
   const httpServer = createServer(app);
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  const wss = new WebSocketServer({ server: httpServer });
 
   wss.on('connection', (ws) => {
-    console.log('WebSocket client connected');
+    console.log('New WebSocket connection');
     clients.add(ws);
 
-    // Send initial data to client
-    storage.getMessageReplies().then(replies => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
+    // Send initial data to the new client
+    db.select().from(messageReplies).orderBy(messageReplies.timestamp)
+      .then(replies => {
+        const initialData = JSON.stringify({
           type: 'initialReplies',
           data: replies
-        }));
+        });
+        ws.send(initialData);
+      })
+      .catch(error => {
+        console.error('Error sending initial data:', error);
+      });
+
+    ws.on('message', async (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('Received WebSocket message:', data);
+        
+        if (data.type === 'reply') {
+          // Handle message reply
+          const { userId, username, content, messageId, avatarUrl, guildId, guildName } = data;
+          
+          console.log('Processing reply:', { userId, username, content, messageId });
+          
+          // Store reply in database
+          const reply = await db.insert(messageReplies).values({
+            userId,
+            username,
+            content,
+            messageId,
+            timestamp: new Date(),
+            avatarUrl,
+            guildId,
+            guildName
+          }).returning();
+
+          console.log('Stored reply:', reply[0]);
+
+          // Broadcast reply to all connected clients
+          const broadcastMessage = JSON.stringify({
+            type: 'newReply',
+            data: reply[0]
+          });
+
+          console.log('Broadcasting reply to clients');
+          clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(broadcastMessage);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
       }
-    }).catch(err => {
-      console.error('Error sending initial replies:', err);
     });
 
     ws.on('close', () => {
-      console.log('WebSocket client disconnected');
+      console.log('Client disconnected');
       clients.delete(ws);
     });
 
