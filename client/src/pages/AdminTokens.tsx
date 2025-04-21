@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
+import { useQuery } from "react-query";
 
 interface Token {
   id: number;
@@ -16,6 +17,15 @@ export default function AdminTokens() {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  const { data: tokensData, isLoading } = useQuery({
+    queryKey: ['/api/admin/tokens'],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/admin/tokens");
+      return response;
+    },
+    retry: false
+  });
 
   useEffect(() => {
     const fetchTokens = async () => {

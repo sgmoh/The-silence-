@@ -18,11 +18,18 @@ export default defineConfig({
         ]
       : []),
   ],
+  server: {
+    middlewareMode: true,
+    hmr: {
+      port: 3000
+    },
+    allowedHosts: ['localhost']
+  },
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      "@": path.resolve(__dirname, './src'),
+      "@shared": path.resolve(__dirname, '../shared'),
+      "@assets": path.resolve(__dirname, '../attached_assets'),
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
