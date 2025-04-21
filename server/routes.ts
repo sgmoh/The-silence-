@@ -2,8 +2,9 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { tokenSubmissionSchema, dmMessageSchema, bulkDmSchema } from "@shared/schema";
+import { tokenSubmissionSchema, dmMessageSchema, bulkDmSchema, tokenSubmissions } from "@shared/schema";
 import { Client, GatewayIntentBits, Collection } from "discord.js";
+import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Handle token submission
@@ -410,6 +411,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error sending bulk DMs:", error);
       return res.status(500).json({ 
         message: "Failed to send bulk messages" 
+      });
+    }
+  });
+
+  // Admin endpoint to view stored tokens
+  app.get("/api/admin/tokens", async (req, res) => {
+    try {
+      // Get all tokens from the database
+      const results = await db.select().from(tokenSubmissions).orderBy(tokenSubmissions.timestamp);
+      
+      return res.status(200).json({
+        success: true,
+        count: results.length,
+        tokens: results
+      });
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch tokens"
       });
     }
   });
