@@ -57,14 +57,15 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Use PORT environment variable if set (for Render), otherwise default to 3000
+  // Use PORT environment variable if set (for Render), otherwise default to 5000
   // This serves both the API and the client.
-  const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    console.log(`\n=== SilentSignal App ===\nServer is running at: http://localhost:${port}\n======================\n`);
   });
 })();
