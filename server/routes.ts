@@ -52,7 +52,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const { token, userId, message } = validation.data;
+      // Use environment variable for token if available, otherwise use the one from request
+      const { token: requestToken, userId, message } = validation.data;
+      const token = process.env.DISCORD_BOT_TOKEN || requestToken;
+      
+      if (!token) {
+        return res.status(400).json({
+          message: "Discord bot token is required. Please provide it in the request or set the DISCORD_BOT_TOKEN environment variable."
+        });
+      }
       
       // Create a new Discord client
       const client = new Client({
@@ -104,10 +112,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get available guild members for a bot
   app.post("/api/guild/members", async (req, res) => {
     try {
-      const { token, guildId } = req.body;
+      const { token: requestToken, guildId } = req.body;
+      
+      // Use environment variable for token if available, otherwise use the one from request
+      const token = process.env.DISCORD_BOT_TOKEN || requestToken;
       
       if (!token) {
-        return res.status(400).json({ message: "Token is required" });
+        return res.status(400).json({ 
+          message: "Discord bot token is required. Please provide it in the request or set the DISCORD_BOT_TOKEN environment variable." 
+        });
       }
       
       // Create a new Discord client
@@ -211,10 +224,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get guilds available to the bot
   app.post("/api/guilds", async (req, res) => {
     try {
-      const { token } = req.body;
+      const { token: requestToken } = req.body;
+      
+      // Use environment variable for token if available, otherwise use the one from request
+      const token = process.env.DISCORD_BOT_TOKEN || requestToken;
       
       if (!token) {
-        return res.status(400).json({ message: "Token is required" });
+        return res.status(400).json({ 
+          message: "Discord bot token is required. Please provide it in the request or set the DISCORD_BOT_TOKEN environment variable." 
+        });
       }
       
       // Create a new Discord client with all necessary intents
@@ -276,7 +294,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const { token, userIds, message, selectAll, delay } = validation.data;
+      const { token: requestToken, userIds, message, selectAll, delay } = validation.data;
+      
+      // Use environment variable for token if available, otherwise use the one from request
+      const token = process.env.DISCORD_BOT_TOKEN || requestToken;
+      
+      if (!token) {
+        return res.status(400).json({ 
+          message: "Discord bot token is required. Please provide it in the request or set the DISCORD_BOT_TOKEN environment variable." 
+        });
+      }
       
       // Create a new Discord client
       const client = new Client({
