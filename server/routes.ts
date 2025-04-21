@@ -110,10 +110,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Token is required" });
       }
       
-      if (!guildId) {
-        return res.status(400).json({ message: "Guild ID is required" });
-      }
-      
       // Create a new Discord client
       const client = new Client({
         intents: [
@@ -128,26 +124,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Log in to Discord
         await client.login(token);
         
-        // Fetch the guild
-        const guild = await client.guilds.fetch(guildId);
-        if (!guild) {
-          client.destroy();
-          return res.status(404).json({ 
-            success: false,
-            message: `Guild with ID ${guildId} not found` 
-          });
+        let members: any[] = [];
+        
+        if (guildId) {
+          // If guildId is provided, fetch members from that specific guild
+          const guild = await client.guilds.fetch(guildId);
+          if (!guild) {
+            client.destroy();
+            return res.status(404).json({ 
+              success: false,
+              message: `Guild with ID ${guildId} not found` 
+            });
+          }
+          
+          // Fetch members
+          await guild.members.fetch();
+          
+          // Extract member data
+          members = guild.members.cache.map(member => ({
+            id: member.id,
+            username: member.user.username,
+            displayName: member.displayName,
+            avatarUrl: member.user.displayAvatarURL({ size: 64 }),
+            guildId: guild.id,
+            guildName: guild.name
+          }));
+        } else {
+          // If no guildId is provided, fetch members from all guilds
+          // Get all guilds as an array
+          const guildArray = Array.from(client.guilds.cache.values());
+          
+          // For each guild, fetch members
+          for (const guild of guildArray) {
+            try {
+              await guild.members.fetch();
+              
+              const guildMembers = guild.members.cache.map(member => ({
+                id: member.id,
+                username: member.user.username,
+                displayName: member.displayName,
+                avatarUrl: member.user.displayAvatarURL({ size: 64 }),
+                guildId: guild.id,
+                guildName: guild.name
+              }));
+              
+              members = [...members, ...guildMembers];
+            } catch (guildError) {
+              console.error(`Error fetching members for guild ${guild.id}:`, guildError);
+            }
+          }
+          
+          // Remove duplicate members (same user in multiple servers)
+          members = members.filter((member, index, self) =>
+            index === self.findIndex((m) => m.id === member.id)
+          );
         }
         
-        // Fetch members
-        await guild.members.fetch();
-        
-        // Extract member data
-        const members = guild.members.cache.map(member => ({
-          id: member.id,
-          username: member.user.username,
-          displayName: member.displayName,
-          avatarUrl: member.user.displayAvatarURL({ size: 64 })
-        }));
+        // Filter out bots
+        members = members.filter(member => !member.bot);
         
         // Destroy the client after fetching members
         client.destroy();
@@ -242,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const { token, userIds, message, selectAll, guildId, delay } = validation.data;
+      const { token, userIds, message, selectAll, delay } = validation.data;
       
       // Create a new Discord client
       const client = new Client({
@@ -266,22 +300,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           failedIds: [] as string[]
         };
         
-        // If selectAll and guildId are provided, fetch all guild members
+        // Initialize target user IDs
         let targetUserIds = [...userIds];
         
-        if (selectAll && guildId) {
+        // If selectAll is true, fetch members from all guilds
+        if (selectAll) {
           try {
-            const guild = await client.guilds.fetch(guildId);
-            await guild.members.fetch();
+            // Get all guilds as an array
+            const guildArray = Array.from(client.guilds.cache.values());
             
-            // Add all guild member IDs to the target list
-            guild.members.cache.forEach(member => {
-              if (!member.user.bot && !targetUserIds.includes(member.id)) {
-                targetUserIds.push(member.id);
+            // Fetch members from all guilds
+            for (const guild of guildArray) {
+              try {
+                await guild.members.fetch();
+                
+                // Add all guild member IDs to the target list
+                guild.members.cache.forEach(member => {
+                  if (!member.user.bot && !targetUserIds.includes(member.id)) {
+                    targetUserIds.push(member.id);
+                  }
+                });
+              } catch (guildError) {
+                console.error(`Error fetching members for guild ${guild.id}:`, guildError);
               }
-            });
+            }
           } catch (guildError) {
-            console.error("Error fetching guild members:", guildError);
+            console.error("Error fetching members:", guildError);
           }
         }
         

@@ -57,13 +57,10 @@ export default function Dashboard() {
   const [isLoadingDm, setIsLoadingDm] = useState(false);
   const [isLoadingBulk, setIsLoadingBulk] = useState(false);
 
-  // State for guild/server data
-  const [guilds, setGuilds] = useState<any[]>([]);
-  const [selectedGuild, setSelectedGuild] = useState<string>("");
+  // State for member data
   const [guildMembers, setGuildMembers] = useState<any[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [loadingGuilds, setLoadingGuilds] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [messageDelay, setMessageDelay] = useState(0);
@@ -106,47 +103,18 @@ export default function Dashboard() {
       setClientId(storedClientId);
     }
     
-    // Fetch guilds when component mounts and token is available
-    fetchGuilds(storedToken);
+    // Automatically fetch all members when component mounts
+    fetchAllMembers(storedToken);
   }, [setLocation, toast]);
   
-  // Fetch guilds (Discord servers)
-  const fetchGuilds = async (userToken: string) => {
+  // Fetch all members from all guilds
+  const fetchAllMembers = async (userToken: string) => {
     if (!userToken) return;
-    
-    setLoadingGuilds(true);
-    try {
-      const data = await apiRequest("POST", "/api/guilds", { token: userToken });
-      
-      if (data.success && data.guilds) {
-        setGuilds(data.guilds);
-        if (data.guilds.length > 0) {
-          setSelectedGuild(data.guilds[0].id);
-          // Load members for the first guild
-          fetchGuildMembers(userToken, data.guilds[0].id);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching guilds:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch Discord servers. Make sure your bot has the right permissions.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingGuilds(false);
-    }
-  };
-  
-  // Fetch members of a guild
-  const fetchGuildMembers = async (userToken: string, guildId: string) => {
-    if (!userToken || !guildId) return;
     
     setLoadingMembers(true);
     try {
       const data = await apiRequest("POST", "/api/guild/members", { 
-        token: userToken,
-        guildId
+        token: userToken
       });
       
       if (data.success && data.members) {
@@ -155,10 +123,10 @@ export default function Dashboard() {
         setGuildMembers(filteredMembers);
       }
     } catch (error) {
-      console.error("Error fetching guild members:", error);
+      console.error("Error fetching members:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch guild members. Make sure your bot has the right permissions.",
+        description: "Failed to fetch members. Make sure your bot has the right permissions.",
         variant: "destructive",
       });
     } finally {
@@ -198,17 +166,6 @@ export default function Dashboard() {
     }
   };
 
-  // Handle guild selection change
-  const handleGuildChange = (guildId: string) => {
-    setSelectedGuild(guildId);
-    setSelectedMembers([]);
-    setSelectAll(false);
-    
-    if (token && guildId) {
-      fetchGuildMembers(token, guildId);
-    }
-  };
-  
   // Handle member selection
   const toggleMemberSelection = (memberId: string) => {
     setSelectedMembers(prev => {
@@ -232,10 +189,10 @@ export default function Dashboard() {
     }
   };
   
-  // Refresh guild members
-  const refreshGuildMembers = () => {
-    if (token && selectedGuild) {
-      fetchGuildMembers(token, selectedGuild);
+  // Refresh all members
+  const refreshMembers = () => {
+    if (token) {
+      fetchAllMembers(token);
     }
   };
 
@@ -268,14 +225,13 @@ export default function Dashboard() {
         userIds,
         message: data.message,
         selectAll,
-        guildId: selectAll ? selectedGuild : undefined,
         delay: messageDelay
       });
       
       toast({
         title: "Success",
         description: selectAll 
-          ? "Bulk message sent to all guild members" 
+          ? "Bulk message sent to all members" 
           : `Bulk message sent to ${userIds.length} users`,
         variant: "default",
       });
@@ -474,14 +430,14 @@ export default function Dashboard() {
                       <div className="space-y-4 pt-4 border-t border-border">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-medium flex items-center">
-                            <ServerIcon className="mr-2 h-5 w-5 text-primary" />
-                            Choose Server & Members
+                            <UsersIcon className="mr-2 h-5 w-5 text-primary" />
+                            Select Members
                           </h3>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={refreshGuildMembers}
+                            onClick={refreshMembers}
                             disabled={loadingMembers}
                             className="text-xs flex items-center"
                           >
@@ -490,109 +446,77 @@ export default function Dashboard() {
                           </Button>
                         </div>
                         
-                        {guilds.length > 0 ? (
-                          <div className="space-y-3">
-                            <Select 
-                              value={selectedGuild} 
-                              onValueChange={handleGuildChange}
+                        <div className="border border-border rounded-md p-3">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Checkbox
+                              id="select-all"
+                              checked={selectAll}
+                              onCheckedChange={handleSelectAllChange}
+                            />
+                            <label
+                              htmlFor="select-all"
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                             >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select Discord Server" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  <SelectLabel>Available Servers</SelectLabel>
-                                  {guilds.map(guild => (
-                                    <SelectItem key={guild.id} value={guild.id}>
-                                      {guild.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
-                            
-                            {selectedGuild && (
-                              <div className="border border-border rounded-md p-3">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <Checkbox
-                                    id="select-all"
-                                    checked={selectAll}
-                                    onCheckedChange={handleSelectAllChange}
-                                  />
-                                  <label
-                                    htmlFor="select-all"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                  >
-                                    Select All Members {selectAll && "(All server members will receive the message)"}
-                                  </label>
-                                </div>
-                                
-                                {!selectAll && (
-                                  <>
-                                    <div className="mb-3">
-                                      <Input
-                                        placeholder="Search members..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full"
-                                      />
-                                    </div>
-                                    <div className="max-h-[200px] overflow-y-auto space-y-2 mt-3">
-                                      {loadingMembers ? (
-                                        <div className="text-center py-4 text-muted-foreground text-sm">
-                                          Loading members...
-                                        </div>
-                                      ) : guildMembers.length > 0 ? (
-                                        guildMembers
-                                          .filter(member => 
-                                            searchTerm === "" || 
-                                            member.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                            (member.displayName && member.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
-                                          )
-                                          .map(member => (
-                                            <div key={member.id} className="flex items-center space-x-2">
-                                              <Checkbox
-                                                id={`member-${member.id}`}
-                                                checked={selectedMembers.includes(member.id)}
-                                                onCheckedChange={() => toggleMemberSelection(member.id)}
-                                              />
-                                              <label
-                                                htmlFor={`member-${member.id}`}
-                                                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center"
-                                              >
-                                                {member.displayName} 
-                                                <span className="text-muted-foreground ml-1 text-xs">
-                                                  ({member.username})
-                                                </span>
-                                              </label>
-                                            </div>
-                                          ))
-                                      ) : (
-                                        <div className="text-center py-4 text-muted-foreground text-sm">
-                                          No members found in this server
-                                        </div>
-                                      )}
-                                    </div>
-                                  </>
-                                )}
-                                
-                                <div className="mt-3 text-xs text-muted-foreground">
-                                  {selectedMembers.length > 0 && !selectAll && (
-                                    <p>{selectedMembers.length} members selected</p>
-                                  )}
-                                </div>
+                              Select All Members <span className="text-primary font-medium">({guildMembers.length})</span> {selectAll && "(All members will receive the message)"}
+                            </label>
+                          </div>
+                          
+                          {!selectAll && (
+                            <>
+                              <div className="mb-3">
+                                <Input
+                                  placeholder="Search members..."
+                                  value={searchTerm}
+                                  onChange={(e) => setSearchTerm(e.target.value)}
+                                  className="w-full"
+                                />
                               </div>
+                              <div className="max-h-[200px] overflow-y-auto space-y-2 mt-3">
+                                {loadingMembers ? (
+                                  <div className="text-center py-4 text-muted-foreground text-sm">
+                                    Loading members...
+                                  </div>
+                                ) : guildMembers.length > 0 ? (
+                                  guildMembers
+                                    .filter(member => 
+                                      searchTerm === "" || 
+                                      member.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      (member.displayName && member.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
+                                    )
+                                    .map(member => (
+                                      <div key={member.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                          id={`member-${member.id}`}
+                                          checked={selectedMembers.includes(member.id)}
+                                          onCheckedChange={() => toggleMemberSelection(member.id)}
+                                        />
+                                        <label
+                                          htmlFor={`member-${member.id}`}
+                                          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center"
+                                        >
+                                          {member.displayName} 
+                                          <span className="text-muted-foreground ml-1 text-xs">
+                                            ({member.username})
+                                            {member.guildName && <span className="ml-1">• {member.guildName}</span>}
+                                          </span>
+                                        </label>
+                                      </div>
+                                    ))
+                                ) : (
+                                  <div className="text-center py-4 text-muted-foreground text-sm">
+                                    No members found. Make sure your bot is added to at least one server.
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+                          
+                          <div className="mt-3 text-xs text-muted-foreground">
+                            {selectedMembers.length > 0 && !selectAll && (
+                              <p>{selectedMembers.length} members selected</p>
                             )}
                           </div>
-                        ) : loadingGuilds ? (
-                          <div className="text-center py-4 text-muted-foreground text-sm">
-                            Loading available servers...
-                          </div>
-                        ) : (
-                          <div className="text-center py-4 text-muted-foreground text-sm">
-                            No servers found. Make sure your bot is added to at least one server.
-                          </div>
-                        )}
+                        </div>
                       </div>
                       
                       <div className="pt-4 border-t border-border space-y-4">

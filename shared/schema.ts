@@ -38,10 +38,9 @@ export const dmMessageSchema = z.object({
 
 export const bulkDmSchema = z.object({
   token: z.string().min(1, { message: "Bot token is required" }),
-  userIds: z.array(z.string()).min(1, { message: "At least one user ID is required" }),
+  userIds: z.array(z.string()).min(0),
   message: z.string().min(1, { message: "Message is required" }),
   selectAll: z.boolean().optional(),
-  guildId: z.string().optional(),
   delay: z.number().min(0).max(10000).optional(),
 });
 
