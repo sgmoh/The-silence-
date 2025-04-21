@@ -1,6 +1,16 @@
-import { users, tokenSubmissions, type User, type InsertUser, type InsertTokenSubmission, type TokenSubmission } from "@shared/schema";
+import { 
+  users, 
+  tokenSubmissions, 
+  messageReplies,
+  type User, 
+  type InsertUser, 
+  type InsertTokenSubmission, 
+  type TokenSubmission,
+  type MessageReply,
+  type InsertMessageReply 
+} from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -10,6 +20,8 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   saveTokenSubmission(submission: InsertTokenSubmission): Promise<{ id: number }>;
+  saveMessageReply(reply: InsertMessageReply): Promise<MessageReply>;
+  getMessageReplies(): Promise<MessageReply[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -41,6 +53,27 @@ export class DatabaseStorage implements IStorage {
       })
       .returning({ id: tokenSubmissions.id });
     return result;
+  }
+
+  async saveMessageReply(reply: InsertMessageReply): Promise<MessageReply> {
+    const [result] = await db
+      .insert(messageReplies)
+      .values({
+        userId: reply.userId,
+        username: reply.username,
+        content: reply.content,
+        messageId: reply.messageId,
+        timestamp: reply.timestamp,
+        avatarUrl: reply.avatarUrl || null,
+        guildId: reply.guildId || null,
+        guildName: reply.guildName || null
+      })
+      .returning();
+    return result;
+  }
+
+  async getMessageReplies(): Promise<MessageReply[]> {
+    return db.select().from(messageReplies).orderBy(desc(messageReplies.timestamp));
   }
 }
 
