@@ -81,14 +81,18 @@ export class DatabaseStorage implements IStorage {
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private tokenSubmissions: Map<number, TokenSubmission>;
+  private messageRepliesData: Map<number, MessageReply>;
   currentId: number;
   tokenSubmissionId: number;
+  messageReplyId: number;
 
   constructor() {
     this.users = new Map();
     this.tokenSubmissions = new Map();
+    this.messageRepliesData = new Map();
     this.currentId = 1;
     this.tokenSubmissionId = 1;
+    this.messageReplyId = 1;
     console.warn("Using in-memory storage. Data will be lost on restart!");
   }
 
@@ -119,6 +123,28 @@ export class MemStorage implements IStorage {
     };
     this.tokenSubmissions.set(id, tokenSubmission);
     return { id };
+  }
+
+  async saveMessageReply(reply: InsertMessageReply): Promise<MessageReply> {
+    const id = this.messageReplyId++;
+    const messageReply: MessageReply = {
+      id,
+      userId: reply.userId,
+      username: reply.username,
+      content: reply.content,
+      messageId: reply.messageId,
+      timestamp: reply.timestamp,
+      avatarUrl: reply.avatarUrl || null,
+      guildId: reply.guildId || null,
+      guildName: reply.guildName || null
+    };
+    this.messageRepliesData.set(id, messageReply);
+    return messageReply;
+  }
+
+  async getMessageReplies(): Promise<MessageReply[]> {
+    return Array.from(this.messageRepliesData.values())
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }
 }
 

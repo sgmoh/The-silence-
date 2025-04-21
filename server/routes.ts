@@ -1,10 +1,22 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { z } from "zod";
-import { tokenSubmissionSchema, dmMessageSchema, bulkDmSchema, tokenSubmissions } from "@shared/schema";
-import { Client, GatewayIntentBits, Collection } from "discord.js";
+import { 
+  tokenSubmissionSchema, 
+  dmMessageSchema, 
+  bulkDmSchema, 
+  tokenSubmissions,
+  messageReplySchema 
+} from "@shared/schema";
+import { Client, GatewayIntentBits, Collection, Events } from "discord.js";
 import { db } from "./db";
+
+// Track active WebSocket connections
+const clients = new Set<WebSocket>();
+// Store the Discord client instance
+let discordClient: Client | null = null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Handle token submission
@@ -387,15 +399,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Destroy the client after sending all messages
-        client.destroy();
+        // Instead of destroying the client, save it to listen for replies
+        if (discordClient) {
+          discordClient.destroy();
+        }
+        
+        // Set the client to listen for replies
+        discordClient = client;
+        
+        // Set up message event listener for DM replies
+        discordClient.on(Events.MessageCreate, async (message) => {
+          // Only process direct messages that are not from the bot itself
+          if (message.channel.isDMBased() && !message.author.bot) {
+            try {
+              console.log(`Received DM reply from ${message.author.username}: ${message.content}`);
+              
+              // Store the reply in the database
+              const reply = await storage.saveMessageReply({
+                userId: message.author.id,
+                username: message.author.username,
+                content: message.content,
+                messageId: message.id,
+                timestamp: new Date(),
+                avatarUrl: message.author.displayAvatarURL({ size: 64 }),
+                guildId: undefined,
+                guildName: undefined
+              });
+              
+              // Broadcast the new reply to all connected WebSocket clients
+              const messageToSend = JSON.stringify({
+                type: 'newReply',
+                data: reply
+              });
+              
+              clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                  client.send(messageToSend);
+                }
+              });
+            } catch (error) {
+              console.error('Error processing message reply:', error);
+            }
+          }
+        });
+        
+        console.log('Reply listener started after sending bulk messages');
         
         return res.status(200).json({ 
           success: true,
-          message: `Sent ${results.success} messages, failed ${results.failed} messages`,
+          message: `Sent ${results.success} messages, failed ${results.failed} messages. Reply listener is now active.`,
           sentCount: results.success,
           failedCount: results.failed,
-          failedIds: results.failedIds
+          failedIds: results.failedIds,
+          replyListenerActive: true
         });
       } catch (discordError: any) {
         console.error("Discord API error:", discordError);
@@ -435,6 +491,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get message replies endpoint
+  app.get("/api/replies", async (req, res) => {
+    try {
+      const replies = await storage.getMessageReplies();
+      return res.status(200).json({
+        success: true,
+        replies
+      });
+    } catch (error) {
+      console.error("Error fetching message replies:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch message replies"
+      });
+    }
+  });
+
+  // Setup WebSocket server for real-time events
   const httpServer = createServer(app);
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+    clients.add(ws);
+
+    // Send initial data to client
+    storage.getMessageReplies().then(replies => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'initialReplies',
+          data: replies
+        }));
+      }
+    }).catch(err => {
+      console.error('Error sending initial replies:', err);
+    });
+
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+      clients.delete(ws);
+    });
+
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      clients.delete(ws);
+    });
+  });
+
+  // Setup persistent Discord client to listen for message replies
+  app.post("/api/startReplyListener", async (req, res) => {
+    try {
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          message: "Bot token is required"
+        });
+      }
+      
+      // If a client is already running, destroy it
+      if (discordClient) {
+        discordClient.destroy();
+        discordClient = null;
+      }
+      
+      // Create a new Discord client
+      discordClient = new Client({
+        intents: [
+          GatewayIntentBits.DirectMessages,
+          GatewayIntentBits.Guilds,
+          GatewayIntentBits.GuildMembers,
+          GatewayIntentBits.GuildMessages,
+          GatewayIntentBits.MessageContent
+        ]
+      });
+      
+      // Listen for direct messages
+      discordClient.on(Events.MessageCreate, async (message) => {
+        // Only process direct messages that are not from the bot itself
+        if (message.channel.isDMBased() && !message.author.bot) {
+          try {
+            console.log(`Received DM reply from ${message.author.username}: ${message.content}`);
+            
+            // Store the reply in the database
+            const reply = await storage.saveMessageReply({
+              userId: message.author.id,
+              username: message.author.username,
+              content: message.content,
+              messageId: message.id,
+              timestamp: new Date(),
+              avatarUrl: message.author.displayAvatarURL({ size: 64 }),
+              guildId: undefined,
+              guildName: undefined
+            });
+            
+            // Broadcast the new reply to all connected WebSocket clients
+            const messageToSend = JSON.stringify({
+              type: 'newReply',
+              data: reply
+            });
+            
+            clients.forEach(client => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(messageToSend);
+              }
+            });
+          } catch (error) {
+            console.error('Error processing message reply:', error);
+          }
+        }
+      });
+      
+      // Login to Discord
+      await discordClient.login(token);
+      
+      return res.status(200).json({
+        success: true,
+        message: "Reply listener started successfully"
+      });
+    } catch (error) {
+      console.error("Error starting reply listener:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to start reply listener"
+      });
+    }
+  });
+
   return httpServer;
 }
