@@ -256,7 +256,7 @@ export default function Dashboard() {
     <div className="flex flex-col min-h-screen bg-background">
       <GridBackground />
       
-      <header className="w-full px-6 py-4 border-b border-border z-10 bg-background/80 backdrop-blur-sm">
+      <header className="w-full px-6 py-2 border-b border-border z-10 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Logo />
