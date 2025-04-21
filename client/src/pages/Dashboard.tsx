@@ -42,7 +42,7 @@ const dmFormSchema = z.object({
 
 // Bulk DM form schema
 const bulkDmFormSchema = z.object({
-  userIds: z.string().min(1, { message: "At least one user ID is required" }),
+  userIds: z.string().optional(),
   message: z.string().min(1, { message: "Message content is required" }),
 });
 
@@ -248,7 +248,7 @@ export default function Dashboard() {
       // Get user IDs either from the textarea or selected members
       let userIds: string[] = [];
       
-      if (data.userIds.trim()) {
+      if (data.userIds && data.userIds.trim()) {
         // Parse from comma-separated list if provided
         userIds = data.userIds
           .split(',')
@@ -444,6 +444,9 @@ export default function Dashboard() {
                             </FormControl>
                             <p className="text-xs text-muted-foreground mt-1">
                               Example: 123456789012345678, 234567890123456789
+                            </p>
+                            <p className="text-xs text-primary mt-1">
+                              Note: You can either enter IDs here OR select server members below
                             </p>
                             <FormMessage />
                           </FormItem>
