@@ -475,7 +475,7 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-medium flex items-center">
                             <ServerIcon className="mr-2 h-5 w-5 text-primary" />
-                            Select Server Members
+                            Choose Server & Members
                           </h3>
                           <Button
                             type="button"
@@ -497,14 +497,14 @@ export default function Dashboard() {
                               onValueChange={handleGuildChange}
                             >
                               <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select a server" />
+                                <SelectValue placeholder="Select Discord Server" />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectGroup>
                                   <SelectLabel>Available Servers</SelectLabel>
                                   {guilds.map(guild => (
                                     <SelectItem key={guild.id} value={guild.id}>
-                                      {guild.name} ({guild.memberCount} members)
+                                      {guild.name}
                                     </SelectItem>
                                   ))}
                                 </SelectGroup>
