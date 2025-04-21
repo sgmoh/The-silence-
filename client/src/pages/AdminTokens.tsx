@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "../lib/queryClient";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 
@@ -13,22 +12,19 @@ interface Token {
   timestamp: string;
 }
 
-interface TokensResponse {
-  tokens: Token[];
-}
-
 export default function AdminTokens() {
   const { toast } = useToast();
   
-  const { data: tokensData, isLoading } = useQuery<TokensResponse>({
-    queryKey: ['/api/admin/tokens'],
+  const { data: tokens, isLoading } = useQuery({
+    queryKey: ['tokens'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/admin/tokens");
-      return response as TokensResponse;
+      const response = await fetch('/api/admin/tokens', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch tokens');
+      return response.json();
     }
   });
-
-  const tokens = tokensData?.tokens || [];
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -51,7 +47,7 @@ export default function AdminTokens() {
         <div className="flex justify-center">
           <p>Loading tokens...</p>
         </div>
-      ) : tokens.length === 0 ? (
+      ) : !tokens?.length ? (
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">No tokens found in the database.</p>
@@ -59,7 +55,7 @@ export default function AdminTokens() {
         </Card>
       ) : (
         <div className="grid gap-6">
-          {tokens.map((token) => (
+          {tokens.map((token: Token) => (
             <Card key={token.id}>
               <CardHeader>
                 <CardTitle>Token #{token.id}</CardTitle>
