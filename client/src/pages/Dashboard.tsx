@@ -256,13 +256,20 @@ export default function Dashboard() {
     <div className="flex flex-col min-h-screen bg-background">
       <GridBackground />
       
-      <header className="w-full px-4 py-1 border-b border-border z-10 bg-background/80 backdrop-blur-sm">
+      <header className="w-full px-4 z-10 bg-background/80 backdrop-blur-sm" style={{ 
+        paddingTop: '0.1cm', 
+        paddingBottom: '0.1cm', 
+        height: '0.63cm', 
+        borderBottom: '0.03cm solid var(--border)',
+        display: 'flex',
+        alignItems: 'center'
+      }}>
         <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" style={{ maxWidth: '2cm' }}>
             <div className="scale-75 transform origin-left">
               <Logo />
             </div>
-            <span className="text-sm font-bold">SilentSignal</span>
+            <span className="font-bold" style={{ fontSize: '14px', height: '0.37cm' }}>SilentSignal</span>
           </div>
           
           <nav className="flex items-center">
