@@ -256,15 +256,17 @@ export default function Dashboard() {
     <div className="flex flex-col min-h-screen bg-background">
       <GridBackground />
       
-      <header className="w-full px-6 py-2 border-b border-border z-10 bg-background/80 backdrop-blur-sm">
+      <header className="w-full px-4 py-1 border-b border-border z-10 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Logo />
-            <span className="text-lg font-bold">SilentSignal</span>
+          <div className="flex items-center gap-1">
+            <div className="scale-75 transform origin-left">
+              <Logo />
+            </div>
+            <span className="text-sm font-bold">SilentSignal</span>
           </div>
           
-          <nav className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
+          <nav className="flex items-center">
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="h-6 text-xs px-2">
               Logout
             </Button>
           </nav>
