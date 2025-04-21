@@ -257,23 +257,23 @@ export default function Dashboard() {
       <GridBackground />
       
       <header className="w-full px-4 z-10 bg-background/80 backdrop-blur-sm" style={{ 
-        paddingTop: '0.1cm', 
-        paddingBottom: '0.1cm', 
-        height: '0.63cm', 
+        paddingTop: '0.05cm', 
+        paddingBottom: '0.05cm', 
+        height: '0.5cm', 
         borderBottom: '0.03cm solid var(--border)',
         display: 'flex',
         alignItems: 'center'
       }}>
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-1" style={{ maxWidth: '2cm' }}>
-            <div className="scale-75 transform origin-left">
+            <div className="transform origin-left" style={{ transform: 'scale(0.65)' }}>
               <Logo />
             </div>
-            <span className="font-bold" style={{ fontSize: '14px', height: '0.37cm' }}>SilentSignal</span>
+            <span className="font-bold" style={{ fontSize: '12px', height: '0.3cm' }}>SilentSignal</span>
           </div>
           
           <nav className="flex items-center">
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="h-6 text-xs px-2">
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="h-5 text-xs px-2 py-0">
               Logout
             </Button>
           </nav>
