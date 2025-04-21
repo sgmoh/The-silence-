@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 
 interface Token {
   id: number;
@@ -13,42 +13,22 @@ interface Token {
   timestamp: string;
 }
 
-export default function AdminTokens() {
-  const [tokens, setTokens] = useState<Token[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+interface TokensResponse {
+  tokens: Token[];
+}
 
-  const { data: tokensData, isLoading } = useQuery({
+export default function AdminTokens() {
+  const { toast } = useToast();
+  
+  const { data: tokensData, isLoading } = useQuery<TokensResponse>({
     queryKey: ['/api/admin/tokens'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/admin/tokens");
-      return response;
-    },
-    retry: false
+      return response as TokensResponse;
+    }
   });
 
-  useEffect(() => {
-    const fetchTokens = async () => {
-      try {
-        setLoading(true);
-        const response = await apiRequest("/api/admin/tokens", {
-          method: "GET",
-        });
-        setTokens(response.tokens || []);
-      } catch (error) {
-        console.error("Error fetching tokens:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to fetch tokens. Please try again later.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTokens();
-  }, [toast]);
+  const tokens = tokensData?.tokens || [];
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -67,7 +47,7 @@ export default function AdminTokens() {
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-8">Token Admin Panel</h1>
       
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center">
           <p>Loading tokens...</p>
         </div>
