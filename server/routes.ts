@@ -41,7 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Send direct message to a user
-  app.post("/api/dm/send", async (req, res) => {
+  app.post("/api/dm/single", async (req, res) => {
     try {
       const validation = dmMessageSchema.safeParse(req.body);
       
