@@ -19,11 +19,8 @@ export default defineConfig({
       : []),
   ],
   server: {
-    middlewareMode: true,
-    hmr: {
-      port: 3000
-    },
-    allowedHosts: ['localhost']
+    port: 3000,
+    strictPort: true
   },
   resolve: {
     alias: {
