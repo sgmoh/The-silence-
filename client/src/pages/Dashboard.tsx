@@ -272,7 +272,12 @@ export default function Dashboard() {
             <span className="font-bold" style={{ fontSize: '12px', height: '0.3cm' }}>SilentSignal</span>
           </div>
           
-          <nav className="flex items-center">
+          <nav className="flex items-center gap-2">
+            <Link href="/replies">
+              <Button variant="ghost" size="sm" className="h-5 text-xs px-2 py-0">
+                Message Replies
+              </Button>
+            </Link>
             <Button variant="ghost" size="sm" onClick={handleLogout} className="h-5 text-xs px-2 py-0">
               Logout
             </Button>
